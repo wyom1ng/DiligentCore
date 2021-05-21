@@ -433,7 +433,7 @@ bool VerifyStateTransitionDesc(const IRenderDevice*       pDevice,
 }
 
 
-bool VerifyBuildBLASAttribs(const BuildBLASAttribs& Attribs)
+bool VerifyBuildBLASAttribs(const IRenderDevice* pDevice, const BuildBLASAttribs& Attribs)
 {
 #define CHECK_BUILD_BLAS_ATTRIBS(Expr, ...) CHECK_PARAMETER(Expr, "Build BLAS attribs are invalid: ", __VA_ARGS__)
 
@@ -444,6 +444,7 @@ bool VerifyBuildBLASAttribs(const BuildBLASAttribs& Attribs)
     CHECK_BUILD_BLAS_ATTRIBS(Attribs.pTriangleData != nullptr || Attribs.TriangleDataCount == 0, "TriangleDataCount is ", Attribs.TriangleDataCount, ", but pTriangleData is null.");
 
     const auto& BLASDesc = Attribs.pBLAS->GetDesc();
+    const auto  DevType  = pDevice->GetDeviceInfo().Type;
 
     CHECK_BUILD_BLAS_ATTRIBS(Attribs.BoxDataCount <= BLASDesc.BoxCount, "BoxDataCount (", Attribs.BoxDataCount, ") must be less than or equal to pBLAS->GetDesc().BoxCount (", BLASDesc.BoxCount, ").");
     CHECK_BUILD_BLAS_ATTRIBS(Attribs.TriangleDataCount <= BLASDesc.TriangleCount, "TriangleDataCount (", Attribs.TriangleDataCount, ") must be less than or equal to pBLAS->GetDesc().TriangleCount (", BLASDesc.TriangleCount, ").");
@@ -491,6 +492,10 @@ bool VerifyBuildBLASAttribs(const BuildBLASAttribs& Attribs)
         CHECK_BUILD_BLAS_ATTRIBS((VertBufDesc.BindFlags & BIND_RAY_TRACING) == BIND_RAY_TRACING,
                                  "pTriangleData[", i, "].pVertexBuffer was not created with BIND_RAY_TRACING flag.");
 
+        CHECK_BUILD_BLAS_ATTRIBS(tri.VertexOffset % tri.VertexStride == 0,
+                                 "pTriangleData[", i, "].VertexOffset (", tri.VertexOffset, ") must be multiple of VertexStride (",
+                                 tri.VertexStride, ").");
+
         CHECK_BUILD_BLAS_ATTRIBS(tri.VertexOffset + VertexDataSize <= VertBufDesc.uiSizeInBytes,
                                  "pTriangleData[", i, "].pVertexBuffer is too small for the specified VertexStride (", tri.VertexStride, ") and VertexCount (",
                                  tri.VertexCount, "): at least ", tri.VertexOffset + VertexDataSize, " bytes are required.");
@@ -516,6 +521,16 @@ bool VerifyBuildBLASAttribs(const BuildBLASAttribs& Attribs)
             CHECK_BUILD_BLAS_ATTRIBS(tri.IndexOffset + IndexDataSize <= InstBufDesc.uiSizeInBytes,
                                      "pTriangleData[", i, "].pIndexBuffer is too small for specified IndexType and IndexCount: at least",
                                      tri.IndexOffset + IndexDataSize, " bytes are required.");
+
+            CHECK_BUILD_BLAS_ATTRIBS(tri.IndexOffset % GetValueSize(TriDesc.IndexType) == 0,
+                                     "pTriangleData[", i, "].IndexOffset (", tri.IndexOffset, ") must be multiple of (", GetValueSize(TriDesc.IndexType), ") bytes.");
+
+            if (DevType == RENDER_DEVICE_TYPE_METAL)
+            {
+                const Uint32 MtlIndexOffsetAlignment = 32;
+                CHECK_BUILD_BLAS_ATTRIBS(tri.IndexOffset % MtlIndexOffsetAlignment == 0,
+                                         "pTriangleData[", i, "].IndexOffset (", tri.IndexOffset, ") must be multiple of the platform buffer offset alignment (", MtlIndexOffsetAlignment, ").");
+            }
         }
         else
         {
