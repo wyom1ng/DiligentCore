@@ -105,6 +105,11 @@ public:
                                                       Uint32&              NumAdapters,
                                                       GraphicsAdapterInfo* Adapters) const override final;
 
+    virtual void DILIGENT_CALL_TYPE EnableDeviceSimulation() const override final
+    {
+        VulkanUtilities::VulkanInstance::EnableDeviceSimulation();
+    }
+
 #if PLATFORM_ANDROID
     virtual void InitAndroidFileSystem(struct ANativeActivity* NativeActivity,
                                        const char*             NativeActivityClassName,
@@ -406,6 +411,12 @@ void EngineFactoryVkImpl::CreateDeviceAndContextsVk(const EngineVkCreateInfo& En
         auto vkDevice       = Instance->SelectPhysicalDevice(EngineCI.AdapterId);
         auto PhysicalDevice = VulkanUtilities::VulkanPhysicalDevice::Create(vkDevice, *Instance);
 
+        std::vector<const char*> DeviceExtensions =
+            {
+                VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+                VK_KHR_MAINTENANCE1_EXTENSION_NAME // To allow negative viewport height
+            };
+
         // Enable device features if they are supported and throw an error if not supported, but required by user.
         const auto AdapterInfo = GetPhysicalDeviceGraphicsAdapterInfo(*PhysicalDevice);
         VerifyEngineCreateInfo(EngineCI, AdapterInfo);
@@ -455,8 +466,9 @@ void EngineFactoryVkImpl::CreateDeviceAndContextsVk(const EngineVkCreateInfo& En
                 Priority = ContextInfo.Priority;
             }
 
-            if (Instance->IsExtensionEnabled(VK_EXT_GLOBAL_PRIORITY_EXTENSION_NAME))
+            if (PhysicalDevice->IsExtensionSupported(VK_EXT_GLOBAL_PRIORITY_EXTENSION_NAME))
             {
+                DeviceExtensions.push_back(VK_EXT_GLOBAL_PRIORITY_EXTENSION_NAME);
                 QueueGlobalPriority.resize(QueueInfos.size());
                 for (Uint32 QInd = 0; QInd < QueueInfos.size(); ++QInd)
                 {
@@ -537,12 +549,6 @@ void EngineFactoryVkImpl::CreateDeviceAndContextsVk(const EngineVkCreateInfo& En
         vkEnabledFeatures.shaderSampledImageArrayDynamicIndexing  = vkDeviceFeatures.shaderSampledImageArrayDynamicIndexing;
         vkEnabledFeatures.shaderStorageBufferArrayDynamicIndexing = vkDeviceFeatures.shaderStorageBufferArrayDynamicIndexing;
         vkEnabledFeatures.shaderStorageImageArrayDynamicIndexing  = vkDeviceFeatures.shaderStorageImageArrayDynamicIndexing;
-
-        std::vector<const char*> DeviceExtensions =
-            {
-                VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-                VK_KHR_MAINTENANCE1_EXTENSION_NAME // To allow negative viewport height
-            };
 
         using ExtensionFeatures                    = VulkanUtilities::VulkanPhysicalDevice::ExtensionFeatures;
         const ExtensionFeatures& DeviceExtFeatures = PhysicalDevice->GetExtFeatures();

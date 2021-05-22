@@ -48,6 +48,8 @@
 namespace VulkanUtilities
 {
 
+bool VulkanInstance::m_EnableDeviceSimulation = false;
+
 bool VulkanInstance::IsLayerAvailable(const char* LayerName, uint32_t& Version) const
 {
     for (const auto& Layer : m_Layers)
@@ -161,11 +163,6 @@ VulkanInstance::VulkanInstance(uint32_t               ApiVersion,
         InstanceExtensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
     }
 
-    if (IsExtensionAvailable(VK_EXT_GLOBAL_PRIORITY_EXTENSION_NAME))
-    {
-        InstanceExtensions.push_back(VK_EXT_GLOBAL_PRIORITY_EXTENSION_NAME);
-    }
-
     if (ppInstanceExtensionNames != nullptr)
     {
         for (uint32_t ext = 0; ext < InstanceExtensionCount; ++ext)
@@ -217,7 +214,7 @@ VulkanInstance::VulkanInstance(uint32_t               ApiVersion,
     std::vector<const char*> InstanceLayers;
 
     // Set to 1 and define environment variable VK_DEVSIM_FILENAME to enable device simulation layer
-#if 0
+    if (m_EnableDeviceSimulation)
     {
         static const char* DeviceSimulationLayer = "VK_LAYER_LUNARG_device_simulation";
 
@@ -227,7 +224,6 @@ VulkanInstance::VulkanInstance(uint32_t               ApiVersion,
             InstanceLayers.push_back(DeviceSimulationLayer);
         }
     }
-#endif
 
     if (EnableValidation)
     {

@@ -75,6 +75,8 @@ public:
 
     const std::vector<VkPhysicalDevice>& GetVkPhysicalDevices() const { return m_PhysicalDevices; }
 
+    static void EnableDeviceSimulation() { m_EnableDeviceSimulation = true; }
+
 private:
     VulkanInstance(uint32_t               ApiVersion,
                    bool                   EnableValidation,
@@ -91,6 +93,8 @@ private:
     std::vector<VkExtensionProperties> m_Extensions;
     std::vector<const char*>           m_EnabledExtensions;
     std::vector<VkPhysicalDevice>      m_PhysicalDevices;
+
+    static bool m_EnableDeviceSimulation;
 };
 
 } // namespace VulkanUtilities
