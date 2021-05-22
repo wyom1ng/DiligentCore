@@ -201,7 +201,7 @@ GraphicsAdapterInfo GetPhysicalDeviceGraphicsAdapterInfo(const VulkanUtilities::
         RayTracingProps.MaxPrimitivesPerBLAS     = static_cast<Uint32>(vkASLimits.maxPrimitiveCount);
         RayTracingProps.MaxGeometriesPerBLAS     = static_cast<Uint32>(vkASLimits.maxGeometryCount);
         RayTracingProps.VertexBufferAlignmnent   = 1;
-        RayTracingProps.IndexBUfferAlignment     = 1;
+        RayTracingProps.IndexBufferAlignment     = 1;
         RayTracingProps.TransformBufferAlignment = 16; // from specs
         RayTracingProps.BoxBufferAlignment       = 8;  // from specs
         RayTracingProps.ScratchBufferAlignment   = static_cast<Uint32>(vkASLimits.minAccelerationStructureScratchOffsetAlignment);

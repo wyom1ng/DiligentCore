@@ -433,7 +433,7 @@ bool VerifyStateTransitionDesc(const IRenderDevice*       pDevice,
 }
 
 
-bool VerifyBuildBLASAttribs(const BuildBLASAttribs& Attribs, const RayTracingProperties& RTProps)
+bool VerifyBuildBLASAttribs(const BuildBLASAttribs& Attribs, const RayTracingProperties& RTProps, bool IsMetal)
 {
 #define CHECK_BUILD_BLAS_ATTRIBS(Expr, ...) CHECK_PARAMETER(Expr, "Build BLAS attribs are invalid: ", __VA_ARGS__)
 
@@ -462,15 +462,18 @@ bool VerifyBuildBLASAttribs(const BuildBLASAttribs& Attribs, const RayTracingPro
 
     for (Uint32 i = 0; i < Attribs.TriangleDataCount; ++i)
     {
-        const auto&  tri            = Attribs.pTriangleData[i];
-        const Uint32 VertexSize     = GetValueSize(tri.VertexValueType) * tri.VertexComponentCount;
-        const Uint32 VertexDataSize = tri.VertexStride * tri.VertexCount;
-        const Uint32 GeomIndex      = Attribs.pBLAS->GetGeometryDescIndex(tri.GeometryName);
+        const auto&  tri       = Attribs.pTriangleData[i];
+        const Uint32 GeomIndex = Attribs.pBLAS->GetGeometryDescIndex(tri.GeometryName);
 
         CHECK_BUILD_BLAS_ATTRIBS(GeomIndex != INVALID_INDEX,
                                  "pTriangleData[", i, "].GeometryName (", tri.GeometryName, ") is not found in BLAS description.");
 
-        const auto& TriDesc = BLASDesc.pTriangles[GeomIndex];
+        const auto&  TriDesc         = BLASDesc.pTriangles[GeomIndex];
+        const Uint32 VertexValueSize = GetValueSize(TriDesc.VertexValueType);
+        const Uint32 VertexSize      = VertexValueSize * tri.VertexComponentCount;
+        const Uint32 VertexDataSize  = tri.VertexStride * tri.VertexCount;
+        const Uint32 VertStrideAlign = IsMetal ? RTProps.VertexBufferAlignmnent : VertexValueSize;
+        const Uint32 VertOffsetAlign = IsMetal ? tri.VertexStride : VertexValueSize;
 
         CHECK_BUILD_BLAS_ATTRIBS(tri.VertexValueType == VT_UNDEFINED || tri.VertexValueType == TriDesc.VertexValueType,
                                  "pTriangleData[", i, "].VertexValueType must be undefined or match the VertexValueType in geometry description.");
@@ -485,18 +488,17 @@ bool VerifyBuildBLASAttribs(const BuildBLASAttribs& Attribs, const RayTracingPro
         CHECK_BUILD_BLAS_ATTRIBS(tri.VertexStride >= VertexSize,
                                  "pTriangleData[", i, "].VertexStride (", tri.VertexStride, ") must be at least ", VertexSize, " bytes.");
 
+        CHECK_BUILD_BLAS_ATTRIBS(tri.VertexStride % VertStrideAlign == 0,
+                                 "pTriangleData[", i, "].VertexStride (", tri.VertexStride, ") must be be aligned to ", VertStrideAlign, " bytes.");
+
         CHECK_BUILD_BLAS_ATTRIBS(tri.pVertexBuffer != nullptr, "pTriangleData[", i, "].pVertexBuffer must not be null.");
 
         const BufferDesc& VertBufDesc = tri.pVertexBuffer->GetDesc();
         CHECK_BUILD_BLAS_ATTRIBS((VertBufDesc.BindFlags & BIND_RAY_TRACING) == BIND_RAY_TRACING,
                                  "pTriangleData[", i, "].pVertexBuffer was not created with BIND_RAY_TRACING flag.");
 
-        CHECK_BUILD_BLAS_ATTRIBS(tri.VertexOffset % tri.VertexStride == 0,
-                                 "pTriangleData[", i, "].VertexOffset (", tri.VertexOffset, ") must be multiple of VertexStride (",
-                                 tri.VertexStride, ").");
-
-        CHECK_BUILD_BLAS_ATTRIBS(tri.VertexOffset % RTProps.VertexBufferAlignmnent == 0,
-                                 "pTriangleData[", i, "].VertexOffset (", tri.VertexOffset, ") must be aligned to (", RTProps.VertexBufferAlignmnent, ") bytes.");
+        CHECK_BUILD_BLAS_ATTRIBS(tri.VertexOffset % VertOffsetAlign == 0,
+                                 "pTriangleData[", i, "].VertexOffset (", tri.VertexOffset, ") must be aligned to (", VertOffsetAlign, ") bytes.");
 
         CHECK_BUILD_BLAS_ATTRIBS(tri.VertexOffset + VertexDataSize <= VertBufDesc.uiSizeInBytes,
                                  "pTriangleData[", i, "].pVertexBuffer is too small for the specified VertexStride (", tri.VertexStride, ") and VertexCount (",
@@ -527,8 +529,8 @@ bool VerifyBuildBLASAttribs(const BuildBLASAttribs& Attribs, const RayTracingPro
             CHECK_BUILD_BLAS_ATTRIBS(tri.IndexOffset % GetValueSize(TriDesc.IndexType) == 0,
                                      "pTriangleData[", i, "].IndexOffset (", tri.IndexOffset, ") must be multiple of (", GetValueSize(TriDesc.IndexType), ") bytes.");
 
-            CHECK_BUILD_BLAS_ATTRIBS(tri.IndexOffset % RTProps.IndexBUfferAlignment == 0,
-                                     "pTriangleData[", i, "].IndexOffset (", tri.IndexOffset, ") must be aligned to (", RTProps.IndexBUfferAlignment, ") bytes.");
+            CHECK_BUILD_BLAS_ATTRIBS(tri.IndexOffset % RTProps.IndexBufferAlignment == 0,
+                                     "pTriangleData[", i, "].IndexOffset (", tri.IndexOffset, ") must be aligned to (", RTProps.IndexBufferAlignment, ") bytes.");
         }
         else
         {
@@ -574,12 +576,17 @@ bool VerifyBuildBLASAttribs(const BuildBLASAttribs& Attribs, const RayTracingPro
         CHECK_BUILD_BLAS_ATTRIBS(box.BoxStride >= BoxSize,
                                  "pBoxData[", i, "].BoxStride (", box.BoxStride, ") must be at least ", BoxSize, " bytes.");
 
-        const Uint32 BoxStrideAlignment = 8;
-        CHECK_BUILD_BLAS_ATTRIBS(box.BoxStride % BoxStrideAlignment == 0,
-                                 "pBoxData[", i, "].BoxStride (", box.BoxStride, ") must be aligned to (", BoxStrideAlignment, ") bytes.");
+        CHECK_BUILD_BLAS_ATTRIBS(box.BoxStride % RTProps.BoxBufferAlignment == 0,
+                                 "pBoxData[", i, "].BoxStride (", box.BoxStride, ") must be aligned to (", RTProps.BoxBufferAlignment, ") bytes.");
 
         CHECK_BUILD_BLAS_ATTRIBS(box.BoxOffset % RTProps.BoxBufferAlignment == 0,
                                  "pBoxData[", i, "].BoxOffset (", box.BoxOffset, ") must be aligned to (", RTProps.BoxBufferAlignment, ") bytes.");
+
+        if (IsMetal)
+        {
+            CHECK_BUILD_BLAS_ATTRIBS(box.BoxOffset % box.BoxStride == 0,
+                                     "pBoxData[", i, "].BoxOffset (", box.BoxOffset, ") must be multiple off (", box.BoxStride, ") bytes.");
+        }
 
         CHECK_BUILD_BLAS_ATTRIBS(box.pBoxBuffer != nullptr, "pBoxData[", i, "].pBoxBuffer must not be null.");
 

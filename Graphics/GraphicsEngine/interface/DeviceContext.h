@@ -990,11 +990,13 @@ struct BLASBuildTriangleData
     IBuffer*    pVertexBuffer         DEFAULT_INITIALIZER(nullptr);
 
     /// Data offset in bytes in pVertexBuffer.
-    /// Offset must be aligned to RayTracingProperties::VertexBufferAlignmnent and multiple of VertexStride.
+    /// D3D12 and Vulkan: offset must be multiple of the VertexValueType size.
+    /// Metal:            stride must be aligned to RayTracingProperties::VertexBufferAlignmnent and must be multiple of the VertexStride.
     Uint32      VertexOffset          DEFAULT_INITIALIZER(0);
 
     /// Stride in bytes between vertices.
-    /// Stride must be multiple of the VertexValueType size.
+    /// D3D12 and Vulkan: stride must be multiple of the VertexValueType size.
+    /// Metal:            stride must be aligned to RayTracingProperties::VertexBufferAlignmnent.
     Uint32      VertexStride          DEFAULT_INITIALIZER(0);
 
     /// The number of triangle vertices.
@@ -1019,7 +1021,7 @@ struct BLASBuildTriangleData
     IBuffer*    pIndexBuffer          DEFAULT_INITIALIZER(nullptr);
 
     /// Data offset in bytes in pIndexBuffer.
-    /// Offset must be aligned to RayTracingProperties::IndexBUfferAlignment and must be multiple of index size.
+    /// Offset must be aligned to RayTracingProperties::IndexBufferAlignment and must be multiple of the IndexType size.
     Uint32      IndexOffset           DEFAULT_INITIALIZER(0);
 
     /// The type of triangle indices, see Diligent::VALUE_TYPE.
@@ -1059,7 +1061,8 @@ struct BLASBuildBoundingBoxData
     IBuffer*    pBoxBuffer   DEFAULT_INITIALIZER(nullptr);
 
     /// Data offset in bytes in pBoxBuffer.
-    /// Offset must be aligned to RayTracingProperties::BoxBufferAlignment and must be multiple of BoxStride.
+    /// D3D12 and Vulkan: offset must be aligned to RayTracingProperties::BoxBufferAlignment.
+    /// Metal:            offset must be aligned to RayTracingProperties::BoxBufferAlignment and must be multiple of the BoxStride.
     Uint32      BoxOffset    DEFAULT_INITIALIZER(0);
 
     /// Stride in bytes between each AABB.

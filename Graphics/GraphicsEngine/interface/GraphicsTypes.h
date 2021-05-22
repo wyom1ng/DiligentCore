@@ -1999,7 +1999,7 @@ struct RayTracingProperties
     Uint32 VertexBufferAlignmnent   DEFAULT_INITIALIZER(0);
     
     /// The minimum alignment for index buffer offset in BLASBuildTriangleData::IndexOffset.
-    Uint32 IndexBUfferAlignment     DEFAULT_INITIALIZER(0);
+    Uint32 IndexBufferAlignment     DEFAULT_INITIALIZER(0);
     
     /// The minimum alignment for transform buffer offset in BLASBuildTriangleData::TransformBufferOffset.
     Uint32 TransformBufferAlignment DEFAULT_INITIALIZER(0);
